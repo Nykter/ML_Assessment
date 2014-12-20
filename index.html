@@ -102,8 +102,6 @@ fitMod
 ggplot(<span class="pl-vo">varI</span>, aes(<span class="pl-v">x</span><span class="pl-k">=</span><span class="pl-vo">Variable</span>,<span class="pl-v">y</span><span class="pl-k">=</span><span class="pl-vo">Importance</span>,<span class="pl-v">color</span><span class="pl-k">=</span><span class="pl-vo">Importance</span>,<span class="pl-v">fill</span><span class="pl-k">=</span><span class="pl-vo">Importance</span>)) <span class="pl-k">+</span> 
       geom_bar(<span class="pl-v">stat</span><span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">'</span>identity<span class="pl-pds">'</span></span>) <span class="pl-k">+</span> coord_flip() <span class="pl-k">+</span> scale_color_gradient()</pre></div>
 
-<p><img src="https://github.com/Nykter/ML_Assessment/blob/master/Figure/varImp.png" alt="Variable Importance">.</p>
-
 <p>After adding the importance of the variables for each "classe" response we decided to drop off variables with a total importance under 120, so I reduced the training set further by subsetting for only the top 19 important variables.</p>
 
 <div class="highlight highlight-r"><pre><span class="pl-vo">best</span> <span class="pl-k">&lt;-</span> as.character(<span class="pl-vo">varI</span>[,<span class="pl-c1">1</span>])
