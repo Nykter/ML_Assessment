@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="ML assessment : Machine Learning Coursera assessment">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>ML assessment</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/Nykter/ML_Assessment">View on GitHub</a>
+
+          <h1 id="project_title">ML assessment</h1>
+          <h2 id="project_tagline">Machine Learning Coursera assessment</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/Nykter/ML_Assessment/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/Nykter/ML_Assessment/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <hr>
+
+<h1>
+<a id="predicting-type-of-exercise-with-wereable-devices" class="anchor" href="#predicting-type-of-exercise-with-wereable-devices" aria-hidden="true"><span class="octicon octicon-link"></span></a>Predicting type of exercise with wereable devices</h1>
+
+<h3>
+<a id="synopsis" class="anchor" href="#synopsis" aria-hidden="true"><span class="octicon octicon-link"></span></a>Synopsis</h3>
+
+<p>Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.</p>
+
+<p>In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the <strong>Weight Lifting Exercise Dataset</strong>).</p>
+
+<p>The goal of this project is to predict the manner in which the participants did the exercise. This is the “<strong>classe</strong>” variable in the training set.</p>
+
+<h3>
+<a id="methodology" class="anchor" href="#methodology" aria-hidden="true"><span class="octicon octicon-link"></span></a>Methodology</h3>
+
+<p>According to the principles of cross-validation, the data was preprocessed to find the relevant variables and format the data so that a classifier could be run on it.</p>
+
+<p>We then perform random forest on the training dataset and confirm the validity of the model on the testing dataset. Finally we use the fitted model to predict the "classe" variable of 20 cases on a <strong>Test data</strong> available here: <a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv</a></p>
+
+<h3>
+<a id="data-preprocessing" class="anchor" href="#data-preprocessing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Data Preprocessing</h3>
+
+<p>The original dataset has 160 variables including the “classe” variable that indicates the exercise type of the participant’s activity. To reduce dimensionality, only the most useful predictors were selected. This was accomplished by eliminating variables that had too many NAs, non-numeric variables, variables that had too few unique values, and finally variables that had near-zero values.</p>
+
+<pre lang="r,cache=TRUE,message=FALSE"><code>library(randomForest)
+library(caret)
+library(dplyr)
+
+## Split training dataset
+set.seed(1234)
+trainDF &lt;- read.csv("pml-training.csv",header=T)
+partition &lt;- createDataPartition(trainDF$classe, p=0.75, list = FALSE)
+train &lt;- trainDF[partition,]
+test &lt;- trainDF[-partition,]
+
+## NA variables removal
+training &lt;- train[, which(as.numeric(colSums(is.na(train)))==0)]
+
+## Non relevant variables removal
+training &lt;- training[,-(1:7)]
+
+## Near zero variables removal
+last &lt;- ncol(training)
+training[,-last] &lt;- data.frame(sapply(training[,-last],as.numeric))
+nearZero &lt;- nearZeroVar(training[,-last])
+training &lt;- training[,-nearZero]
+</code></pre>
+
+<h3>
+<a id="fit-of-random-forest-by-variables-importance" class="anchor" href="#fit-of-random-forest-by-variables-importance" aria-hidden="true"><span class="octicon octicon-link"></span></a>Fit of random forest by variables importance</h3>
+
+<p>We fit a random forest model for the training dataset:</p>
+
+<pre lang="r,cache=TRUE"><code>fitMod&lt;- randomForest(classe~., data=training, mtry=10, importance=T)
+fitMod
+</code></pre>
+
+<p>And study the importance of the variables:</p>
+
+<div class="highlight highlight-r"><pre><span class="pl-vo">varI</span> <span class="pl-k">&lt;-</span> varImp(<span class="pl-vo">fitMod</span>)
+<span class="pl-vo">varI</span> <span class="pl-k">&lt;-</span> mutate(<span class="pl-vo">varI</span>, <span class="pl-v">Variable</span><span class="pl-k">=</span>rownames(<span class="pl-vo">varI</span>))
+<span class="pl-vo">varI</span> <span class="pl-k">&lt;-</span> mutate(<span class="pl-vo">varI</span>, <span class="pl-v">Importance</span><span class="pl-k">=</span><span class="pl-vo">A</span><span class="pl-k">+</span><span class="pl-vo">B</span><span class="pl-k">+</span><span class="pl-vo">C</span><span class="pl-k">+</span><span class="pl-vo">D</span><span class="pl-k">+</span><span class="pl-vo">E</span>)
+<span class="pl-vo">varI</span> <span class="pl-k">&lt;-</span> <span class="pl-vo">varI</span>[,<span class="pl-c1">6</span><span class="pl-k">:</span><span class="pl-c1">7</span>]
+<span class="pl-vo">varI</span> <span class="pl-k">&lt;-</span> arrange(<span class="pl-vo">varI</span>,<span class="pl-vo">Importance</span>)
+<span class="pl-vo">varI</span> <span class="pl-k">&lt;-</span> <span class="pl-vo">varI</span>[<span class="pl-c1">34</span><span class="pl-k">:</span><span class="pl-c1">52</span>,]
+<span class="pl-vo">varI</span><span class="pl-k">$</span><span class="pl-vo">Variable</span> <span class="pl-k">&lt;-</span> <span class="pl-st">factor</span>(<span class="pl-vo">varI</span><span class="pl-k">$</span><span class="pl-vo">Variable</span>, <span class="pl-v">levels</span><span class="pl-k">=</span><span class="pl-vo">varI</span><span class="pl-k">$</span><span class="pl-vo">Variable</span>, <span class="pl-v">ordered</span> <span class="pl-k">=</span> <span class="pl-c1">TRUE</span>)
+ggplot(<span class="pl-vo">varI</span>, aes(<span class="pl-v">x</span><span class="pl-k">=</span><span class="pl-vo">Variable</span>,<span class="pl-v">y</span><span class="pl-k">=</span><span class="pl-vo">Importance</span>,<span class="pl-v">color</span><span class="pl-k">=</span><span class="pl-vo">Importance</span>,<span class="pl-v">fill</span><span class="pl-k">=</span><span class="pl-vo">Importance</span>)) <span class="pl-k">+</span> 
+      geom_bar(<span class="pl-v">stat</span><span class="pl-k">=</span><span class="pl-s1"><span class="pl-pds">'</span>identity<span class="pl-pds">'</span></span>) <span class="pl-k">+</span> coord_flip() <span class="pl-k">+</span> scale_color_gradient()</pre></div>
+
+<p><img src="https://github.com/Nykter/ML_Assessment/blob/master/Figure/varImp.png" alt="Variable Importance">.</p>
+
+<p>After adding the importance of the variables for each "classe" response we decided to drop off variables with a total importance under 120, so I reduced the training set further by subsetting for only the top 19 important variables.</p>
+
+<div class="highlight highlight-r"><pre><span class="pl-vo">best</span> <span class="pl-k">&lt;-</span> as.character(<span class="pl-vo">varI</span>[,<span class="pl-c1">1</span>])
+<span class="pl-vo">best</span>[<span class="pl-c1">20</span>] <span class="pl-k">&lt;-</span> <span class="pl-s1"><span class="pl-pds">"</span>classe<span class="pl-pds">"</span></span>
+<span class="pl-vo">bestTraining</span> <span class="pl-k">&lt;-</span> <span class="pl-vo">training</span>[,<span class="pl-vo">best</span>]
+<span class="pl-vo">bestTesting</span> <span class="pl-k">&lt;-</span> <span class="pl-vo">test</span>[,<span class="pl-vo">best</span>]</pre></div>
+
+<p>Now that the best predictors had been identified, the reduced training set was again fitted with the random forest model and the model was then run on the testing set. We also created a confusion matrix to see the accuracy of our results.</p>
+
+<pre lang="r,cache=TRUE"><code>fitModBest&lt;- randomForest(classe~., data=bestTraining, mtry=10, importance=T)
+fitModBest
+test.matrix&lt;-confusionMatrix(bestTesting$classe,predict(fitModBest,bestTesting))
+test.matrix$table
+test.matrix$overall[1:4]
+</code></pre>
+
+<h3>
+<a id="final-test-set-classification" class="anchor" href="#final-test-set-classification" aria-hidden="true"><span class="octicon octicon-link"></span></a>Final test set classification</h3>
+
+<p>Finally, the test set is preprocessed and classified by the model.</p>
+
+<pre lang="r,cache=TRUE"><code>testDF &lt;- read.csv("pml-testing.csv",header=T)
+prob&lt;-names(testDF)
+prob[160]&lt;-"classe"
+names(testDF)&lt;-prob
+testDF&lt;-testDF[,best]
+predict(fitModBest,testDF)
+</code></pre>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">ML assessment maintained by <a href="https://github.com/Nykter">Nykter</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
