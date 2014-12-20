@@ -1,0 +1,104 @@
+---
+title: "Predicting type of exercise with wereable devices"
+author: "Ricardo Merino Raldua"
+date: "Saturday, December 20, 2014"
+output: html_document
+---
+
+### Synopsis
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the **Weight Lifting Exercise Dataset**).
+
+The goal of this project is to predict the manner in which the participants did the exercise. This is the "**classe**" variable in the training set.
+
+### Methodology
+
+According to the principles of cross-validation, the data was preprocessed to find the relevant variables and format the data so that a classifier could be run on it.
+
+We then perform random forest on the training dataset and confirm the validity of the model on the testing dataset. Finally we use the fitted model to predict the "classe" variable of 20 cases on a **Test data** available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+### Data Preprocessing
+
+The original dataset has 160 variables including the "classe" variable that indicates the exercise type of the participant's activity. To reduce dimensionality, only the most useful predictors were selected. This was accomplished by eliminating variables that had too many NAs, non-numeric variables, variables that had too few unique values, and finally variables that had near-zero values.
+
+```{r,cache=TRUE,message=FALSE}
+library(randomForest)
+library(caret)
+library(dplyr)
+
+## Split training dataset
+set.seed(1234)
+trainDF <- read.csv("pml-training.csv",header=T)
+partition <- createDataPartition(trainDF$classe, p=0.75, list = FALSE)
+train <- trainDF[partition,]
+test <- trainDF[-partition,]
+
+## NA variables removal
+training <- train[, which(as.numeric(colSums(is.na(train)))==0)]
+
+## Non relevant variables removal
+training <- training[,-(1:7)]
+
+## Near zero variables removal
+last <- ncol(training)
+training[,-last] <- data.frame(sapply(training[,-last],as.numeric))
+nearZero <- nearZeroVar(training[,-last])
+training <- training[,-nearZero]
+```
+
+### Fit of random forest by variables importance
+
+We fit a random forest model for the training dataset:
+
+```{r,cache=TRUE}
+fitMod<- randomForest(classe~., data=training, mtry=10, importance=T)
+fitMod
+```
+
+And study the importance of the variables:
+
+```{r}
+varI <- varImp(fitMod)
+varI <- mutate(varI, Variable=rownames(varI))
+varI <- mutate(varI, Importance=A+B+C+D+E)
+varI <- varI[,6:7]
+varI <- arrange(varI,Importance)
+varI <- varI[34:52,]
+varI$Variable <- factor(varI$Variable, levels = varI$Variable, ordered = TRUE)
+ggplot(varI, aes(x=Variable, y=Importance, color=Importance, fill=Importance)) + 
+      geom_bar(stat='identity') + coord_flip() + scale_color_gradient()
+```
+
+After adding the importance of the variables for each "classe" response we decided to drop off variables with a total importance under 120, so I reduced the training set further by subsetting for only the top 19 important variables.
+
+```{r}
+best <- as.character(varI[,1])
+best[20] <- "classe"
+bestTraining <- training[,best]
+bestTesting <- test[,best]
+```
+
+Now that the best predictors had been identified, the reduced training set was again fitted with the random forest model and the model was then run on the testing set. We also created a confusion matrix to see the accuracy of our results.
+
+```{r,cache=TRUE}
+fitModBest<- randomForest(classe~., data=bestTraining, mtry=10, importance=T)
+fitModBest
+test.matrix<- confusionMatrix(bestTesting$classe,predict(fitModBest,bestTesting))
+test.matrix$table
+test.matrix$overall[1:4]
+```
+
+### Final test set classification
+
+Finally, the test set is preprocessed and classified by the model.
+
+```{r,cache=TRUE}
+testDF <- read.csv("pml-testing.csv",header=T)
+prob<-names(testDF)
+prob[160]<-"classe"
+names(testDF)<-prob
+testDF<-testDF[,best]
+predict(fitModBest,testDF)
+```
